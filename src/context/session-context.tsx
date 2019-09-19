@@ -3,9 +3,9 @@ import jwtDecode from 'jwt-decode';
 import FullPageSpinner from '../components/full-page-spinner';
 import { getNewAccessToken } from '../helpers/get-new-access-token';
 
-const RefreshTokenContext = React.createContext({} as any);
+const SessionContext = React.createContext({} as any);
 
-export function RefreshTokenProvider(props: any) {
+export function SessionProvider(props: any) {
   const [firstAttemptFinished, setFirstAttemptFinished] = React.useState(false);
   const [refreshToken, setRefreshToken] = React.useState<string | null>(null);
   const [accessToken, setAccessToken] = React.useState<string | null>(null);
@@ -153,16 +153,14 @@ export function RefreshTokenProvider(props: any) {
     );
   }
 
-  return <RefreshTokenContext.Provider value={value} {...props} />;
+  return <SessionContext.Provider value={value} {...props} />;
 }
 
-export function useRefreshToken() {
-  const context = React.useContext(RefreshTokenContext);
+export function useSession() {
+  const context = React.useContext(SessionContext);
 
   if (typeof context === 'undefined') {
-    throw new Error(
-      `useRefreshToken must be used within a RefreshTokenProvider`,
-    );
+    throw new Error(`useSession must be used within a SessionProvider`);
   }
 
   return context;

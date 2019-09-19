@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useMutation } from 'urql';
-import { useRefreshToken } from './refresh-token-context';
+import { useSession } from './session-context';
 
 const AuthContext = React.createContext({} as any);
 
@@ -32,7 +32,7 @@ const REGISTER_MUTATION = `
 `;
 
 function AuthProvider(props: any) {
-  const session = useRefreshToken();
+  const session = useSession();
   const loginMutation = useMutation(LOGIN_MUTATION)[1];
   const registerMutation = useMutation(REGISTER_MUTATION)[1];
   const changePasswordMutation = useMutation(CHANGE_PASSWORD_MUTATION)[1];

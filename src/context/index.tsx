@@ -3,16 +3,16 @@ import { Provider } from 'urql';
 import { AuthProvider } from './auth-context';
 import { UserProvider } from './user-context';
 import client from '../graphql-client';
-import { RefreshTokenProvider } from './refresh-token-context';
+import { SessionProvider } from './session-context';
 
 function AppProviders({ children }: any) {
   return (
     <Provider value={client}>
-      <RefreshTokenProvider>
+      <SessionProvider>
         <AuthProvider>
           <UserProvider>{children}</UserProvider>
         </AuthProvider>
-      </RefreshTokenProvider>
+      </SessionProvider>
     </Provider>
   );
 }
