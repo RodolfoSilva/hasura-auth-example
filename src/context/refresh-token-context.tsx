@@ -12,12 +12,37 @@ export function RefreshTokenProvider(props: any) {
   const [refreshToken, setRefreshToken] = React.useState<string | null>(null);
   const [accessToken, setAccessToken] = React.useState<string | null>(null);
 
+  // Initialize
   React.useEffect(() => {
     const storedRefreshToken = window.localStorage.getItem('refresh-token');
 
     setRefreshToken(storedRefreshToken);
     setFirstAttemptFinished(true);
-  }, []);
+  }, [setRefreshToken, setFirstAttemptFinished]);
+
+  // Update sessionStorage with accessToken
+  React.useEffect(() => {
+    if (!accessToken) {
+      window.sessionStorage.removeItem('access-token');
+      return;
+    }
+
+    window.sessionStorage.setItem('access-token', accessToken);
+  }, [accessToken]);
+
+  // Update localStorage with accessToken
+  React.useEffect(() => {
+    if (!firstAttemptFinished) {
+      return;
+    }
+
+    if (!refreshToken) {
+      window.sessionStorage.removeItem('access-token');
+      return;
+    }
+
+    window.localStorage.setItem('refresh-token', refreshToken);
+  }, [refreshToken]);
 
   const _updateAccessToken = React.useCallback(async () => {
     if (!refreshToken) {
@@ -35,7 +60,6 @@ export function RefreshTokenProvider(props: any) {
 
     const accessToken = await getNewAccessToken(refreshToken);
     setAccessToken(accessToken);
-    window.sessionStorage.setItem('access-token', accessToken);
     setIsPending(false);
   }, [refreshToken]);
 
@@ -45,6 +69,11 @@ export function RefreshTokenProvider(props: any) {
     }
     _updateAccessToken().catch(e => {
       setIsPending(false);
+
+      if (e.message === "Invalid 'refresh_token' or 'user_id'") {
+        setRefreshToken(null);
+        return;
+      }
       setError(e);
       console.error(e);
     });
@@ -77,9 +106,10 @@ export function RefreshTokenProvider(props: any) {
   const value = React.useMemo(
     () => ({
       accessToken,
+      setRefreshToken,
       setAccessToken,
     }),
-    [accessToken, setAccessToken],
+    [accessToken, setRefreshToken, setAccessToken],
   );
 
   if (isPending) {

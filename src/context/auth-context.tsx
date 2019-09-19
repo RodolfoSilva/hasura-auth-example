@@ -42,11 +42,6 @@ const clearStorage = () => {
   }
 };
 
-const updateStorage = ({ access_token, refresh_token }: any) => {
-  window.sessionStorage.setItem('access-token', access_token);
-  window.localStorage.setItem('refresh-token', refresh_token);
-};
-
 function AuthProvider(props: any) {
   const [
     weAreStillWaitingToGetTheUserData,
@@ -108,7 +103,7 @@ function AuthProvider(props: any) {
           return Promise.reject(new Error(error.graphQLErrors[0].message));
         }
 
-        updateStorage(data.auth_login);
+        refreshTokenActions.setRefreshToken(data.auth_login.access_token);
         refreshTokenActions.setAccessToken(data.auth_login.access_token);
 
         setUser({
