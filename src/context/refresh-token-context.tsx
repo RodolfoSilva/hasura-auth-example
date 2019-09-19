@@ -1,16 +1,16 @@
 import React from 'react';
 import jwtDecode from 'jwt-decode';
 import FullPageSpinner from '../components/full-page-spinner';
-import { getNewAccessToken } from '../utils/get-new-access-token';
+import { getNewAccessToken } from '../helpers/get-new-access-token';
 
 const RefreshTokenContext = React.createContext({} as any);
 
 export function RefreshTokenProvider(props: any) {
   const [firstAttemptFinished, setFirstAttemptFinished] = React.useState(false);
-  const [isPending, setIsPending] = React.useState(true);
-  const [error, setError] = React.useState<any>(null);
   const [refreshToken, setRefreshToken] = React.useState<string | null>(null);
   const [accessToken, setAccessToken] = React.useState<string | null>(null);
+  const [isPending, setIsPending] = React.useState(true);
+  const [error, setError] = React.useState<any>(null);
 
   // Initialize
   React.useEffect(() => {
@@ -38,6 +38,7 @@ export function RefreshTokenProvider(props: any) {
 
     if (!refreshToken) {
       window.sessionStorage.removeItem('access-token');
+      setAccessToken(null);
       return;
     }
 
@@ -63,6 +64,7 @@ export function RefreshTokenProvider(props: any) {
     setIsPending(false);
   }, [refreshToken]);
 
+  // Get access-token
   React.useEffect(() => {
     if (!firstAttemptFinished) {
       return;
@@ -79,6 +81,7 @@ export function RefreshTokenProvider(props: any) {
     });
   }, [firstAttemptFinished]);
 
+  // Auto update access-token
   React.useEffect(() => {
     if (!accessToken) {
       return;
@@ -103,13 +106,38 @@ export function RefreshTokenProvider(props: any) {
     }
   }, [accessToken]);
 
+  const currentUser = React.useMemo(() => {
+    if (!accessToken) {
+      return null;
+    }
+
+    const decoded: any = jwtDecode(accessToken);
+
+    const payload = decoded['https://hasura.io/jwt/claims'];
+    const allowedRoles = payload['x-hasura-allowed-roles'];
+    const defaultRole = payload['x-hasura-default-role'];
+    const organizationId = payload['x-hasura-organization-id'];
+    const sessionId = payload['x-hasura-session-id'];
+    const userId = payload['x-hasura-user-id'];
+
+    return {
+      expireAt: new Date(decoded.exp * 1000),
+      allowedRoles,
+      defaultRole,
+      userId,
+      sessionId,
+      organizationId,
+    };
+  }, [accessToken]);
+
   const value = React.useMemo(
     () => ({
+      currentUser,
       accessToken,
       setRefreshToken,
       setAccessToken,
     }),
-    [accessToken, setRefreshToken, setAccessToken],
+    [currentUser, accessToken, setRefreshToken, setAccessToken],
   );
 
   if (isPending) {

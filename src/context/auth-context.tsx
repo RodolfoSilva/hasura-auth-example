@@ -1,7 +1,5 @@
 import React, { useCallback } from 'react';
 import { useMutation } from 'urql';
-import jwtDecode from 'jwt-decode';
-import FullPageSpinner from '../components/full-page-spinner';
 import { useRefreshToken } from './refresh-token-context';
 
 const AuthContext = React.createContext({} as any);
@@ -33,67 +31,20 @@ const REGISTER_MUTATION = `
   }
 `;
 
-const clearStorage = () => {
-  const keys = ['access-token', 'refresh-token', 'organization-id', 'user-id'];
-
-  for (let key of keys) {
-    window.localStorage.removeItem(key);
-    window.sessionStorage.removeItem(key);
-  }
-};
-
 function AuthProvider(props: any) {
-  const [
-    weAreStillWaitingToGetTheUserData,
-    setWeAreStillWaitingToGetTheUserData,
-  ] = React.useState(true);
-  const refreshTokenActions = useRefreshToken();
-  const [user, setUser] = React.useState<any>(null);
+  const session = useRefreshToken();
   const loginMutation = useMutation(LOGIN_MUTATION)[1];
   const registerMutation = useMutation(REGISTER_MUTATION)[1];
   const changePasswordMutation = useMutation(CHANGE_PASSWORD_MUTATION)[1];
 
-  React.useEffect(() => {
-    const accessToken = window.sessionStorage.getItem('access-token');
-
-    if (typeof accessToken !== 'string') {
-      clearStorage();
-      console.log(refreshTokenActions);
-      refreshTokenActions.setAccessToken(null);
-      setWeAreStillWaitingToGetTheUserData(false);
-      return;
-    }
-
-    const decoded: any = jwtDecode(accessToken);
-
-    if (decoded.exp < Date.now() / 1000) {
-      refreshTokenActions.setAccessToken(null);
-      clearStorage();
-      setWeAreStillWaitingToGetTheUserData(false);
-      return;
-    }
-
-    const payload = decoded['https://hasura.io/jwt/claims'];
-    const allowedRoles = payload['x-hasura-allowed-roles'];
-    const defaultRole = payload['x-hasura-default-role'];
-    const organizationId = payload['x-hasura-organization-id'];
-    const sessionId = payload['x-hasura-session-id'];
-    const userId = payload['x-hasura-user-id'];
-
-    if (accessToken) {
-      setUser({
-        allowedRoles,
-        defaultRole,
-        userId,
-        sessionId,
-        organizationId,
-      });
-    }
-
-    setWeAreStillWaitingToGetTheUserData(false);
-  }, []);
+  const user = session.currentUser;
 
   const data = { user };
+
+  const logout = useCallback(() => {
+    session.setAccessToken(null);
+    session.setRefreshToken(null);
+  }, [session.setAccessToken, session.setRefreshToken]);
 
   const login = useCallback(
     async (values: any) => {
@@ -103,20 +54,13 @@ function AuthProvider(props: any) {
           return Promise.reject(new Error(error.graphQLErrors[0].message));
         }
 
-        refreshTokenActions.setRefreshToken(data.auth_login.access_token);
-        refreshTokenActions.setAccessToken(data.auth_login.access_token);
-
-        setUser({
-          accessToken: data.auth_login.access_token,
-          refreshToken: data.auth_login.refresh_roken,
-          userId: data.auth_login.user_id,
-          organizationId: data.auth_login.organization_id,
-        });
+        session.setRefreshToken(data.auth_login.refresh_token);
+        session.setAccessToken(data.auth_login.access_token);
       } catch (e) {
         console.log(e);
       }
     },
-    [loginMutation, setUser, refreshTokenActions.setAccessToken],
+    [loginMutation, session.setAccessToken],
   );
 
   const register = useCallback(
@@ -147,17 +91,11 @@ function AuthProvider(props: any) {
     [registerMutation],
   );
 
-  const logout = useCallback(() => {
-    clearStorage();
-    refreshTokenActions.setAccessToken(null);
-    setUser(null);
-  }, [setUser, refreshTokenActions.setAccessToken]);
-
   const changePassword = useCallback(
     async (newPassword: string) => {
       const { data, error } = await changePasswordMutation({
         new_password: newPassword,
-        user_id: user.userId,
+        user_id: session.currentUser!.userId,
       });
 
       if (error) {
@@ -176,7 +114,7 @@ function AuthProvider(props: any) {
 
       return true;
     },
-    [changePasswordMutation],
+    [changePasswordMutation, session.currentUser],
   );
 
   const value = React.useMemo(
@@ -189,10 +127,6 @@ function AuthProvider(props: any) {
     }),
     [data, login, logout, register, changePassword],
   );
-
-  if (weAreStillWaitingToGetTheUserData) {
-    return <FullPageSpinner />;
-  }
 
   return <AuthContext.Provider value={value} {...props} />;
 }
